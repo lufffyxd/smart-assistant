@@ -1,0 +1,12 @@
+[build]
+  command = "cd client && npm install --include-dev-dependencies && npm run build"
+  publish = "client/dist"
+  
+[build.environment]
+  NODE_VERSION = "18"
+  NPM_FLAGS = "--include-dev-dependencies"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
