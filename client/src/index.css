@@ -2,10 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Inject Tailwind's base styles */
+/* Inject Tailwind's base styles and define theme variables */
 @layer base {
+  /* Light Theme Colors */
   :root {
-    /* Light Theme Colors */
     --color-bg-primary: 249 250 251; /* Tailwind gray-50 */
     --color-bg-secondary: 255 255 255; /* White */
     --color-text-primary: 31 41 55; /* Tailwind gray-800 */
@@ -16,7 +16,6 @@
     --color-success: 16 185 129; /* Tailwind emerald-500 */
     --color-warning: 245 158 11; /* Tailwind amber-500 */
     --color-error: 239 68 68; /* Tailwind red-500 */
-
 
     /* Dark Theme Colors */
     --color-bg-primary-dark: 17 24 39; /* Tailwind gray-900 */
@@ -31,6 +30,7 @@
     --color-error-dark: 239 68 68; /* Tailwind red-500 */
   }
 
+  /* Apply dark theme variables when .dark class is present on html element */
   .dark {
     --color-bg-primary: var(--color-bg-primary-dark);
     --color-bg-secondary: var(--color-bg-secondary-dark);
@@ -45,7 +45,9 @@
   }
 
   body {
-    @apply bg-bg-primary text-text-primary;
+    /* Use CSS variables with rgb() and alpha for Tailwind-like utility */
+    background-color: rgb(var(--color-bg-primary) / 1);
+    color: rgb(var(--color-text-primary) / 1);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
       'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
       sans-serif;
@@ -60,36 +62,64 @@
       monospace;
   }
 
-  /* Custom scrollbar */
+  /* Custom scrollbar using theme variables */
   ::-webkit-scrollbar {
     width: 8px;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-gray-100 dark:bg-gray-800;
+    background-color: rgb(var(--color-bg-secondary) / 1);
+  }
+  .dark ::-webkit-scrollbar-track {
+    background-color: rgb(var(--color-bg-secondary-dark) / 1);
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+    background-color: rgb(209 213 219 / 1); /* Tailwind gray-300 */
+    border-radius: 9999px; /* Full rounded */
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    background-color: rgb(75 85 99 / 1); /* Tailwind gray-600 */
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400 dark:bg-gray-500;
+    background-color: rgb(156 163 175 / 1); /* Tailwind gray-400 */
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(107 114 128 / 1); /* Tailwind gray-500 */
   }
 
   /* Loading Spinner */
   .spinner {
-    border: 4px solid rgba(0, 0, 0, 0.1);
-    @apply border-l-accent border-solid rounded-full w-10 h-10 animate-spin;
+    border: 4px solid rgb(0 0 0 / 0.1);
+    border-left-color: rgb(var(--color-accent-default) / 1);
+    border-style: solid;
+    border-radius: 50%;
+    width: 2.5rem; /* 40px */
+    height: 2.5rem; /* 40px */
+    animation: spin 1s linear infinite;
   }
   .dark .spinner {
-    border: 4px solid rgba(255, 255, 255, 0.1);
+    border: 4px solid rgb(255 255 255 / 0.1);
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   /* Loading Dots */
   .loading-dots span {
-    @apply w-2 h-2 bg-text-secondary dark:bg-text-secondary-dark rounded-full inline-block mr-2;
+    width: 0.5rem; /* 8px */
+    height: 0.5rem; /* 8px */
+    background-color: rgb(var(--color-text-secondary) / 1); /* Light theme color */
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 0.5rem; /* 8px */
     animation: bounce 1.5s infinite ease-in-out both;
+  }
+  .dark .loading-dots span {
+    background-color: rgb(var(--color-text-secondary-dark) / 1); /* Dark theme color */
   }
   .loading-dots span:nth-child(1) {
     animation-delay: -0.32s;
@@ -105,34 +135,9 @@
       transform: scale(1.0);
     }
   }
-
-
-  /* Utility classes for theme-aware colors */
-  .bg-bg-primary { background-color: rgb(var(--color-bg-primary) / var(--tw-bg-opacity, 1)); }
-  .bg-bg-secondary { background-color: rgb(var(--color-bg-secondary) / var(--tw-bg-opacity, 1)); }
-  .text-text-primary { color: rgb(var(--color-text-primary) / var(--tw-text-opacity, 1)); }
-  .text-text-secondary { color: rgb(var(--color-text-secondary) / var(--tw-text-opacity, 1)); }
-  .border-border { border-color: rgb(var(--color-border) / var(--tw-border-opacity, 1)); }
-  .bg-accent { background-color: rgb(var(--color-accent-default) / var(--tw-bg-opacity, 1)); }
-  .hover\:bg-accent-hover:hover { background-color: rgb(var(--color-accent-hover) / var(--tw-bg-opacity, 1)); }
-  .text-accent { color: rgb(var(--color-accent-default) / var(--tw-text-opacity, 1)); }
-  .border-accent { border-color: rgb(var(--color-accent-default) / var(--tw-border-opacity, 1)); }
-
-
-  /* Dark mode overrides */
-  .dark .bg-bg-primary { background-color: rgb(var(--color-bg-primary) / var(--tw-bg-opacity, 1)); }
-  .dark .bg-bg-secondary { background-color: rgb(var(--color-bg-secondary) / var(--tw-bg-opacity, 1)); }
-  .dark .text-text-primary { color: rgb(var(--color-text-primary) / var(--tw-text-opacity, 1)); }
-  .dark .text-text-secondary { color: rgb(var(--color-text-secondary) / var(--tw-text-opacity, 1)); }
-  .dark .border-border { border-color: rgb(var(--color-border) / var(--tw-border-opacity, 1)); }
-  .dark .bg-accent { background-color: rgb(var(--color-accent-default) / var(--tw-bg-opacity, 1)); }
-  .dark .hover\:bg-accent-hover:hover { background-color: rgb(var(--color-accent-hover) / var(--tw-bg-opacity, 1)); }
-  .dark .text-accent { color: rgb(var(--color-accent-default) / var(--tw-text-opacity, 1)); }
-  .dark .border-accent { border-color: rgb(var(--color-accent-default) / var(--tw-border-opacity, 1)); }
-
 }
 
 /* Ensure full height for app */
 #root {
-  @apply min-h-screen;
+  min-height: 100vh;
 }
