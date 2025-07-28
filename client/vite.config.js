@@ -1,14 +1,20 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+// client/vite.config.js
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
-// https://vitejs.dev/config/  
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 3000
+    port: 3000,
+    // host: true, // Uncomment if needed
   },
   build: {
-    outDir: 'dist'
-    // Remove the rollupOptions.input - let Vite use default
-  }
-})
+    outDir: 'dist',
+    assetsDir: 'assets',
+    // It's generally best to let Vite use its default input (client/index.html)
+    // If you previously had rollupOptions: { input: ... }, remove it.
+    // rollupOptions: {
+    //   input: './index.html' // This should be the default, but you can try uncommenting if needed
+    // }
+  },
+});
