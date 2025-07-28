@@ -2,35 +2,137 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow: hidden;
+/* Inject Tailwind's base styles */
+@layer base {
+  :root {
+    /* Light Theme Colors */
+    --color-bg-primary: 249 250 251; /* Tailwind gray-50 */
+    --color-bg-secondary: 255 255 255; /* White */
+    --color-text-primary: 31 41 55; /* Tailwind gray-800 */
+    --color-text-secondary: 107 114 128; /* Tailwind gray-500 */
+    --color-border: 229 231 235; /* Tailwind gray-200 */
+    --color-accent-default: 79 70 229; /* Tailwind indigo-600 */
+    --color-accent-hover: 67 56 202; /* Tailwind indigo-700 */
+    --color-success: 16 185 129; /* Tailwind emerald-500 */
+    --color-warning: 245 158 11; /* Tailwind amber-500 */
+    --color-error: 239 68 68; /* Tailwind red-500 */
+
+
+    /* Dark Theme Colors */
+    --color-bg-primary-dark: 17 24 39; /* Tailwind gray-900 */
+    --color-bg-secondary-dark: 31 41 55; /* Tailwind gray-800 */
+    --color-text-primary-dark: 249 250 251; /* Tailwind gray-50 */
+    --color-text-secondary-dark: 156 163 175; /* Tailwind gray-400 */
+    --color-border-dark: 55 65 81; /* Tailwind gray-700 */
+    --color-accent-default-dark: 99 102 241; /* Tailwind indigo-400 */
+    --color-accent-hover-dark: 79 70 229; /* Tailwind indigo-500 */
+    --color-success-dark: 16 185 129; /* Tailwind emerald-500 */
+    --color-warning-dark: 245 158 11; /* Tailwind amber-500 */
+    --color-error-dark: 239 68 68; /* Tailwind red-500 */
+  }
+
+  .dark {
+    --color-bg-primary: var(--color-bg-primary-dark);
+    --color-bg-secondary: var(--color-bg-secondary-dark);
+    --color-text-primary: var(--color-text-primary-dark);
+    --color-text-secondary: var(--color-text-secondary-dark);
+    --color-border: var(--color-border-dark);
+    --color-accent-default: var(--color-accent-default-dark);
+    --color-accent-hover: var(--color-accent-hover-dark);
+    --color-success: var(--color-success-dark);
+    --color-warning: var(--color-warning-dark);
+    --color-error: var(--color-error-dark);
+  }
+
+  body {
+    @apply bg-bg-primary text-text-primary;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden; /* Keep as per your original */
+    transition: background-color 0.3s, color 0.3s; /* Smooth theme transition */
+  }
+
+  code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+      monospace;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-800;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-500;
+  }
+
+  /* Loading Spinner */
+  .spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    @apply border-l-accent border-solid rounded-full w-10 h-10 animate-spin;
+  }
+  .dark .spinner {
+    border: 4px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Loading Dots */
+  .loading-dots span {
+    @apply w-2 h-2 bg-text-secondary dark:bg-text-secondary-dark rounded-full inline-block mr-2;
+    animation: bounce 1.5s infinite ease-in-out both;
+  }
+  .loading-dots span:nth-child(1) {
+    animation-delay: -0.32s;
+  }
+  .loading-dots span:nth-child(2) {
+    animation-delay: -0.16s;
+  }
+  @keyframes bounce {
+    0%, 80%, 100% {
+      transform: scale(0);
+    }
+    40% {
+      transform: scale(1.0);
+    }
+  }
+
+
+  /* Utility classes for theme-aware colors */
+  .bg-bg-primary { background-color: rgb(var(--color-bg-primary) / var(--tw-bg-opacity, 1)); }
+  .bg-bg-secondary { background-color: rgb(var(--color-bg-secondary) / var(--tw-bg-opacity, 1)); }
+  .text-text-primary { color: rgb(var(--color-text-primary) / var(--tw-text-opacity, 1)); }
+  .text-text-secondary { color: rgb(var(--color-text-secondary) / var(--tw-text-opacity, 1)); }
+  .border-border { border-color: rgb(var(--color-border) / var(--tw-border-opacity, 1)); }
+  .bg-accent { background-color: rgb(var(--color-accent-default) / var(--tw-bg-opacity, 1)); }
+  .hover\:bg-accent-hover:hover { background-color: rgb(var(--color-accent-hover) / var(--tw-bg-opacity, 1)); }
+  .text-accent { color: rgb(var(--color-accent-default) / var(--tw-text-opacity, 1)); }
+  .border-accent { border-color: rgb(var(--color-accent-default) / var(--tw-border-opacity, 1)); }
+
+
+  /* Dark mode overrides */
+  .dark .bg-bg-primary { background-color: rgb(var(--color-bg-primary) / var(--tw-bg-opacity, 1)); }
+  .dark .bg-bg-secondary { background-color: rgb(var(--color-bg-secondary) / var(--tw-bg-opacity, 1)); }
+  .dark .text-text-primary { color: rgb(var(--color-text-primary) / var(--tw-text-opacity, 1)); }
+  .dark .text-text-secondary { color: rgb(var(--color-text-secondary) / var(--tw-text-opacity, 1)); }
+  .dark .border-border { border-color: rgb(var(--color-border) / var(--tw-border-opacity, 1)); }
+  .dark .bg-accent { background-color: rgb(var(--color-accent-default) / var(--tw-bg-opacity, 1)); }
+  .dark .hover\:bg-accent-hover:hover { background-color: rgb(var(--color-accent-hover) / var(--tw-bg-opacity, 1)); }
+  .dark .text-accent { color: rgb(var(--color-accent-default) / var(--tw-text-opacity, 1)); }
+  .dark .border-accent { border-color: rgb(var(--color-accent-default) / var(--tw-border-opacity, 1)); }
+
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
-}
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #c5c5c5;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #a0a0a0;
+/* Ensure full height for app */
+#root {
+  @apply min-h-screen;
 }
