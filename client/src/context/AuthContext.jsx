@@ -25,15 +25,12 @@ export const AuthProvider = ({ children }) => {
       // For now, we'll assume a valid token means a valid user.
       // A more robust approach would be to fetch user data from /api/auth/me
       // and set the user state based on that response.
-      // setUser({ id: 1, email: 'user@example.com' }); // Placeholder from before
-      // Let's assume if token exists, we are logged in, but user data needs to be fetched
-      // or we need a more definitive check. For now, let's just set loading to false
-      // if a token exists, and rely on login/signup to set the user.
-      // A better approach for persistence would be:
+      // Example (uncomment and implement backend endpoint if needed):
       /*
       api.get('/auth/me')
          .then(res => {
-           setUser(res.data.user);
+           // Ensure the user object structure matches what App expects (id, email)
+           setUser({ id: res.data._id, email: res.data.email });
            setLoading(false);
          })
          .catch(err => {
@@ -43,8 +40,8 @@ export const AuthProvider = ({ children }) => {
            setLoading(false);
          });
       */
-      // For simplicity and matching your current structure, we'll proceed as before
-      // but make sure login correctly updates the state.
+      // For simplicity, and because login/signup now correctly set the user state,
+      // we just finish loading. The actual user state should be set by login/signup.
     }
     setLoading(false);
   }, []);
@@ -54,21 +51,31 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await api.post('/auth/login', { email, password });
       console.log("Login response received:", res.data);
-      
-      const { token, user: userData } = res.data;
-      
+
+      // --- CORRECTED DESTRUCTURING BASED ON ACTUAL BACKEND RESPONSE ---
+      // Backend sends { _id, email, token } at the top level
+      const { token, _id, email: responseEmail } = res.data;
+
       // Basic validation
-      if (!token || !userData) {
-        console.error("Login response missing token or user data:", res.data);
+      if (!token || !_id) {
+        console.error("Login response missing token or user ID:", res.data);
         return { success: false, message: 'Invalid response from server' };
       }
 
+      // --- CREATE A USER OBJECT THAT MATCHES YOUR FRONTEND EXPECTATIONS ---
+      // The frontend components expect user.id and user.email
+      const userData = {
+        id: _id,               // Map _id from backend to id for frontend
+        email: responseEmail   // Use the email from the response
+        // Add other properties if your frontend expects them and backend sends them
+      };
+
       localStorage.setItem('token', token);
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
+
       console.log("Setting user state in context to:", userData);
       setUser(userData); // This should trigger a re-render in App.jsx
-      
+
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
@@ -84,21 +91,30 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await api.post('/auth/signup', { email, password });
       console.log("Signup response received:", res.data);
-      
-      const { token, user: userData } = res.data;
-      
+
+      // --- CORRECTED DESTRUCTURING BASED ON ACTUAL BACKEND RESPONSE ---
+      // Assuming backend sends { _id, email, token } upon signup as well
+      const { token, _id, email: responseEmail } = res.data;
+
       // Basic validation
-      if (!token || !userData) {
-        console.error("Signup response missing token or user data:", res.data);
+      if (!token || !_id) {
+        console.error("Signup response missing token or user ID:", res.data);
         return { success: false, message: 'Invalid response from server' };
       }
 
+      // --- CREATE A USER OBJECT ---
+      const userData = {
+        id: _id,
+        email: responseEmail
+        // Add other properties if needed
+      };
+
       localStorage.setItem('token', token);
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
+
       console.log("Setting user state in context to:", userData);
-      setUser(userData); // This should trigger a re-render in App.jsx
-      
+      setUser(userData);
+
       return { success: true };
     } catch (error) {
       console.error('Signup error:', error);
