@@ -4,8 +4,7 @@ node_modules/
 # Environment variables
 .env
 
-# Build outputs
-client/dist/
+# Build outputs (but not the dist folder itself)
 client/.vite/
 
 # Logs
@@ -18,4 +17,3 @@ Thumbs.db
 # IDE files
 .vscode/
 .idea/
-EOF
