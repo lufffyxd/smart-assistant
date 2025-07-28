@@ -9,7 +9,10 @@ import NotificationsSection from './components/NotificationsSection';
 import api from './services/api';
 
 const App = () => {
+  // Add debugging log to see state changes
   const { user, logout, loading } = useAuth();
+  console.log("App.jsx render - loading:", loading, "user:", user);
+
   const [activeTab, setActiveTab] = useState('chat');
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
@@ -18,6 +21,7 @@ const App = () => {
 
   // Load conversations when user logs in
   useEffect(() => {
+    console.log("App useEffect triggered by 'user' change. User:", user);
     if (user) {
       loadConversations();
     }
@@ -55,6 +59,7 @@ const App = () => {
   }
 
   if (!user) {
+    console.log("Rendering Login/Signup screen because user is null/undefined");
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
@@ -96,6 +101,7 @@ const App = () => {
     );
   }
 
+  console.log("Rendering Main App Interface for user:", user);
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
