@@ -2,24 +2,27 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
-import { useDashboard } from './context/DashboardContext'; // Import useDashboard
+import { useDashboard } from './context/DashboardContext';
+import { useNews } from './context/NewsContext'; // Import useNews
 import AuthModal from './components/AuthModal';
-import ChatInterface from './components/ChatInterface';
-import NotesSection from './components/NotesSection'; // Import NotesSection
-import TaskManager from './components/TaskManager'; // Import TaskManager
-import NewsWindow from './components/NewsWindow'; // Import NewsWindow
+import UniversalChatInterface from './components/UniversalChatInterface'; // Import UniversalChatInterface
+import NotesSection from './components/NotesSection';
+import TaskManager from './components/TaskManager';
 import api from './services/api';
 
 const App = () => {
   const { user, logout, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { layout, toggleLayout, customWindows } = useDashboard(); // Use dashboard context
+  const { layout, toggleLayout, customWindows, pinnedWindows, pinWindow, unpinWindow, addCustomWindow } = useDashboard();
+  const { loadNewsQuery } = useNews(); // Use news context
+  
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeConversation, setActiveConversation] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [searchQuery, setSearchQuery] = useState(''); // Global search state
+  const [activeFeatureWindow, setActiveFeatureWindow] = useState(null); // For feature window chats
 
   // Load conversations when user logs in
   useEffect(() => {
@@ -47,6 +50,18 @@ const App = () => {
     } catch (error) {
       console.error('Error creating conversation:', error);
     }
+  };
+
+  // Handler to open a feature window chat
+  const openFeatureWindowChat = (windowId, windowTitle) => {
+    setActiveFeatureWindow({ id: windowId, title: windowTitle });
+    setActiveTab('feature-chat');
+  };
+
+  // Handler to go back to dashboard from feature chat
+  const handleBackToDashboard = () => {
+    setActiveFeatureWindow(null);
+    setActiveTab('dashboard');
   };
 
   if (loading) {
@@ -165,6 +180,10 @@ const App = () => {
   // Combine base windows with custom windows
   const allWindowCards = [...baseWindowCards, ...customWindows];
 
+  // Separate pinned and unpinned windows
+  const pinnedCards = allWindowCards.filter(card => pinnedWindows.includes(card.id));
+  const unpinnedCards = allWindowCards.filter(card => !pinnedWindows.includes(card.id));
+
   return (
     <div className="flex flex-col h-screen bg-bg-primary text-text-primary">
       {/* Header */}
@@ -239,7 +258,7 @@ const App = () => {
                       };
                       const createdWindow = addCustomWindow(newWindow);
                       // Optionally open the new window
-                      // setActiveTab(createdWindow.id);
+                      // openFeatureWindowChat(createdWindow.id, createdWindow.title);
                     }
                   }}
                   className="bg-accent text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-accent-hover transition flex items-center"
@@ -252,18 +271,49 @@ const App = () => {
               </div>
             </div>
             
-            {/* Window Grid/List */}
+            {/* Pinned Windows Section */}
+            {pinnedCards.length > 0 && (
+              <>
+                <h3 className="text-lg font-semibold text-text-primary mb-3 flex items-center">
+                  <svg className="w-4 h-4 mr-2 text-accent" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M5.5 17.5a.5.5 0 01-1 0V2.914l-.646-.647a.5.5 0 01.708-.708l1.5 1.5a.5.5 0 010 .708l-1.5 1.5a.5.5 0 01-.708-.708L4.5 3.914V17.5zM9 2a1 1 0 011 1v14a1 1 0 11-2 0V3a1 1 0 011-1zm4 0a1 1 0 011 1v14a1 1 0 11-2 0V3a1 1 0 011-1zm4 0a1 1 0 011 1v14a1 1 0 11-2 0V3a1 1 0 011-1z" />
+                  </svg>
+                  Pinned Windows
+                </h3>
+                <div className={layout === 'grid' 
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8" 
+                  : "space-y-4 mb-8"
+                }>
+                  {pinnedCards.map((card) => (
+                    <WindowCard 
+                      key={card.id} 
+                      card={card} 
+                      layout={layout} 
+                      onCreateChat={createNewConversation}
+                      openFeatureWindowChat={openFeatureWindowChat}
+                      isPinned={true}
+                      onUnpin={() => unpinWindow(card.id)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+            
+            {/* All Windows Section */}
+            <h3 className="text-lg font-semibold text-text-primary mb-3">All Windows</h3>
             <div className={layout === 'grid' 
               ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" 
               : "space-y-4"
             }>
-              {allWindowCards.map((card) => (
+              {unpinnedCards.map((card) => (
                 <WindowCard 
                   key={card.id} 
                   card={card} 
                   layout={layout} 
                   onCreateChat={createNewConversation}
-                  onActivateTab={setActiveTab}
+                  openFeatureWindowChat={openFeatureWindowChat}
+                  isPinned={false}
+                  onPin={() => pinWindow(card.id)}
                 />
               ))}
             </div>
@@ -271,31 +321,75 @@ const App = () => {
         )}
 
         {activeTab === 'chat' && activeConversation && (
-          <ChatInterface
-            activeConversation={activeConversation}
-            setActiveConversation={setActiveConversation}
-            setActiveTab={setActiveTab}
+          <UniversalChatInterface
+            windowId="main-chat"
+            windowTitle="Chat Hub"
+            onBackToDashboard={() => setActiveTab('dashboard')}
           />
         )}
 
-        {activeTab === 'notes' && (
+        {activeTab === 'feature-chat' && activeFeatureWindow && (
+          <UniversalChatInterface
+            windowId={activeFeatureWindow.id}
+            windowTitle={activeFeatureWindow.title}
+            onBackToDashboard={handleBackToDashboard}
+            isNewsWindow={activeFeatureWindow.id === 'news'}
+            isTaskManager={activeFeatureWindow.id === 'tasks'}
+            isNotesWindow={activeFeatureWindow.id === 'notes'}
+            renderSpecialUI={() => {
+              if (activeFeatureWindow.id === 'tasks') {
+                return (
+                  <div className="bg-bg-secondary border-b border-border p-3">
+                    <h3 className="text-md font-semibold text-text-primary mb-2">Task Manager</h3>
+                    <p className="text-text-secondary text-sm">Task management controls are available in the full Task Manager view.</p>
+                    <button
+                      onClick={() => {
+                        setActiveTab('tasks-full');
+                        handleBackToDashboard(); // Close the chat view
+                      }}
+                      className="mt-2 text-accent hover:text-accent-hover text-sm font-medium"
+                    >
+                      Open Full Task Manager
+                    </button>
+                  </div>
+                );
+              }
+              if (activeFeatureWindow.id === 'notes') {
+                return (
+                  <div className="bg-bg-secondary border-b border-border p-3">
+                    <h3 className="text-md font-semibold text-text-primary mb-2">Block Notes</h3>
+                    <p className="text-text-secondary text-sm">Note editing is available in the full Notes view.</p>
+                    <button
+                      onClick={() => {
+                        setActiveTab('notes-full');
+                        handleBackToDashboard(); // Close the chat view
+                      }}
+                      className="mt-2 text-accent hover:text-accent-hover text-sm font-medium"
+                    >
+                      Open Full Notes
+                    </button>
+                  </div>
+                );
+              }
+              return null;
+            }}
+          />
+        )}
+
+        {activeTab === 'notes-full' && (
           <NotesSection />
         )}
 
-        {activeTab === 'tasks' && (
+        {activeTab === 'tasks-full' && (
           <TaskManager />
-        )}
-
-        {activeTab === 'news' && (
-          <NewsWindow />
         )}
 
         {/* TODO: Implement other sections (crypto, fitness, prompts, etc.) */}
         {activeTab !== 'dashboard' && 
          activeTab !== 'chat' && 
-         activeTab !== 'notes' && 
-         activeTab !== 'tasks' && 
-         activeTab !== 'news' && (
+         activeTab !== 'feature-chat' && 
+         activeTab !== 'notes-full' && 
+         activeTab !== 'tasks-full' && (
           <div className="flex-1 flex flex-col items-center justify-center p-6 bg-bg-primary">
             <h2 className="text-2xl font-bold text-text-primary mb-2">
               {allWindowCards.find(c => c.id === activeTab)?.title || 'Feature'}
@@ -315,15 +409,18 @@ const App = () => {
 };
 
 // WindowCard Component (extracted for reusability)
-const WindowCard = ({ card, layout, onCreateChat, onActivateTab }) => {
-  const { pinnedWindows, pinWindow, unpinWindow } = useDashboard();
-  const isPinned = pinnedWindows.includes(card.id);
+const WindowCard = ({ card, layout, onCreateChat, openFeatureWindowChat, isPinned, onPin, onUnpin }) => {
   
   const handleCardClick = () => {
     if (card.id === 'chat') {
       onCreateChat();
+    } else if (['notes', 'tasks', 'news', 'crypto', 'fitness', 'prompts'].includes(card.id) || card.isCustom) {
+      // Open in the universal chat interface
+      openFeatureWindowChat(card.id, card.title);
     } else {
-      onActivateTab(card.id);
+      // Fallback to tab-based navigation for other sections
+      // You can implement specific views for these later
+      alert(`${card.title} view is not yet implemented.`);
     }
   };
 
@@ -363,9 +460,9 @@ const WindowCard = ({ card, layout, onCreateChat, onActivateTab }) => {
                 onClick={(e) => {
                   e.stopPropagation();
                   if (isPinned) {
-                    unpinWindow(card.id);
+                    onUnpin();
                   } else {
-                    pinWindow(card.id);
+                    onPin();
                   }
                 }}
                 className={`text-xs px-2 py-1 rounded ${
@@ -411,9 +508,9 @@ const WindowCard = ({ card, layout, onCreateChat, onActivateTab }) => {
               onClick={(e) => {
                 e.stopPropagation();
                 if (isPinned) {
-                  unpinWindow(card.id);
+                  onUnpin();
                 } else {
-                  pinWindow(card.id);
+                  onPin();
                 }
               }}
               className={`text-xs px-2 py-1 rounded ${

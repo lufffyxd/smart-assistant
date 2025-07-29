@@ -5,14 +5,17 @@ import App from './App';
 import './index.css';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { DashboardProvider } from './context/DashboardContext'; // Import DashboardProvider
+import { DashboardProvider } from './context/DashboardContext';
+import { NewsProvider } from './context/NewsContext'; // Add this import
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AuthProvider>
       <ThemeProvider>
-        <DashboardProvider> {/* Wrap App with DashboardProvider */}
-          <App />
+        <DashboardProvider>
+          <NewsProvider> {/* Add NewsProvider */}
+            <App />
+          </NewsProvider>
         </DashboardProvider>
       </ThemeProvider>
     </AuthProvider>
