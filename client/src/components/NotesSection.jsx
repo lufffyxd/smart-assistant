@@ -1,9 +1,11 @@
+// client/src/components/NotesSection.jsx
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 
 const NotesSection = () => {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [newNote, setNewNote] = useState({ title: '', content: '' });
 
   useEffect(() => {
     loadNotes();
@@ -21,20 +23,21 @@ const NotesSection = () => {
   };
 
   const createNote = async () => {
+    if (!newNote.title.trim() || !newNote.content.trim()) return;
+    
     try {
-      const res = await api.post('/notes', { content: '' });
+      const res = await api.post('/notes', newNote);
       setNotes([res.data, ...notes]);
+      setNewNote({ title: '', content: '' });
     } catch (error) {
       console.error('Error creating note:', error);
     }
   };
 
-  const updateNote = async (id, content) => {
+  const updateNote = async (id, updatedData) => {
     try {
-      await api.put(`/notes/${id}`, { content });
-      setNotes(notes.map(note => 
-        note._id === id ? { ...note, content } : note
-      ));
+      const res = await api.put(`/notes/${id}`, updatedData);
+      setNotes(notes.map(note => note._id === id ? res.data : note));
     } catch (error) {
       console.error('Error updating note:', error);
     }
@@ -51,65 +54,124 @@ const NotesSection = () => {
 
   if (loading) {
     return (
-      <div className="flex-1 p-6 bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading notes...</div>
+      <div className="flex-1 flex items-center justify-center p-6 bg-bg-primary">
+        <div className="text-center">
+          <div className="spinner mx-auto mb-4"></div>
+          <p className="text-text-secondary">Loading notes...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 p-6 bg-gray-50">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">Block Notes</h2>
+    <div className="flex-1 flex flex-col p-6 bg-bg-primary overflow-hidden">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-text-primary mb-4">Block Notes</h2>
+        <div className="bg-bg-secondary rounded-lg p-4 border border-border shadow-sm">
+          <input
+            type="text"
+            placeholder="Note title"
+            className="w-full p-2 mb-2 rounded border border-border bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+            value={newNote.title}
+            onChange={(e) => setNewNote({...newNote, title: e.target.value})}
+          />
+          <textarea
+            placeholder="Note content"
+            className="w-full p-2 mb-2 rounded border border-border bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+            rows="3"
+            value={newNote.content}
+            onChange={(e) => setNewNote({...newNote, content: e.target.value})}
+          />
           <button
             onClick={createNote}
-            className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-indigo-700 transition flex items-center"
+            className="bg-accent text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-accent-hover transition"
           >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            New Note
+            Create Note
           </button>
         </div>
-        
+      </div>
+
+      <div className="flex-1 overflow-y-auto space-y-4">
         {notes.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-            <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">No notes yet</h3>
-            <p className="text-gray-600">Create your first note to save important information</p>
+          <div className="text-center py-10">
+            <p className="text-text-secondary">No notes yet. Create your first note above.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {notes.map(note => (
-              <div key={note._id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="p-5">
-                  <textarea
-                    defaultValue={note.content}
-                    onBlur={(e) => updateNote(note._id, e.target.value)}
-                    className="w-full h-32 border-none focus:ring-0 p-0 text-gray-700"
-                  />
-                </div>
-                <div className="bg-gray-50 px-5 py-3 flex justify-between items-center">
-                  <span className="text-xs text-gray-500">
-                    {new Date(note.createdAt).toLocaleDateString()}
-                  </span>
-                  <button 
-                    onClick={() => deleteNote(note._id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          notes.map(note => (
+            <NoteItem 
+              key={note._id} 
+              note={note} 
+              onUpdate={updateNote} 
+              onDelete={deleteNote} 
+            />
+          ))
         )}
       </div>
+    </div>
+  );
+};
+
+const NoteItem = ({ note, onUpdate, onDelete }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(note.title);
+  const [editedContent, setEditedContent] = useState(note.content);
+
+  const handleSave = () => {
+    onUpdate(note._id, { title: editedTitle, content: editedContent });
+    setIsEditing(false);
+  };
+
+  return (
+    <div className="bg-bg-secondary rounded-lg p-4 border border-border shadow-sm">
+      {isEditing ? (
+        <>
+          <input
+            type="text"
+            className="w-full p-2 mb-2 rounded border border-border bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+            value={editedTitle}
+            onChange={(e) => setEditedTitle(e.target.value)}
+          />
+          <textarea
+            className="w-full p-2 mb-2 rounded border border-border bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+            rows="4"
+            value={editedContent}
+            onChange={(e) => setEditedContent(e.target.value)}
+          />
+          <div className="flex justify-end space-x-2">
+            <button
+              onClick={() => setIsEditing(false)}
+              className="bg-bg-primary border border-border text-text-primary py-1 px-3 rounded-lg text-sm font-medium hover:bg-bg-secondary transition"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="bg-accent text-white py-1 px-3 rounded-lg text-sm font-medium hover:bg-accent-hover transition"
+            >
+              Save
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <h3 className="text-lg font-semibold text-text-primary mb-2">{note.title}</h3>
+          <p className="text-text-secondary whitespace-pre-wrap mb-4">{note.content}</p>
+          <div className="flex justify-end space-x-2">
+            <button
+              onClick={() => onDelete(note._id)}
+              className="text-red-500 hover:text-red-700 text-sm font-medium"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => setIsEditing(true)}
+              className="text-accent hover:text-accent-hover text-sm font-medium"
+            >
+              Edit
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };

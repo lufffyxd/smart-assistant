@@ -116,6 +116,26 @@ const ChatInterface = ({ activeConversation, setActiveConversation, setActiveTab
     scrollToBottom();
   }, [messages]);
 
+  // Save chat to notes
+  const saveToNotes = async () => {
+    if (messages.length === 0) return;
+    
+    const content = messages.map(m => 
+      `${m.sender === 'user' ? 'You' : 'AI'}: ${m.text}`
+    ).join('\n\n');
+    
+    try {
+      await api.post('/notes', {
+        title: `Chat: ${activeConversation.title}`,
+        content
+      });
+      alert('Chat saved to notes successfully!');
+    } catch (error) {
+      console.error('Error saving to notes:', error);
+      alert('Failed to save chat to notes.');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-bg-primary">
       {/* Chat Header */}
@@ -144,10 +164,7 @@ const ChatInterface = ({ activeConversation, setActiveConversation, setActiveTab
           </div>
         </div>
         <button
-          onClick={() => {
-            // TODO: Implement save to notes logic
-            alert('Save to Notes functionality would go here.');
-          }}
+          onClick={saveToNotes}
           className="ml-2 bg-bg-secondary border border-border text-text-primary py-1 px-3 rounded-lg text-sm font-medium hover:bg-bg-primary transition disabled:opacity-50"
           disabled={messages.length === 0}
         >
