@@ -6,33 +6,40 @@ const UniversalChatInterface = ({
   windowId, 
   windowTitle, 
   onBackToDashboard,
-  // Special props for specific windows
+  enableWebSearch = false, // New prop
   isNewsWindow = false,
   isTaskManager = false,
   isNotesWindow = false,
-  renderSpecialUI // Function to render special UI elements
+  renderSpecialUI 
 }) => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState(null);
-  const [newsTopic, setNewsTopic] = useState(''); // For news window
-  const [isMonitoring, setIsMonitoring] = useState(false); // For news window
+  const [newsTopic, setNewsTopic] = useState(''); 
+  const [isMonitoring, setIsMonitoring] = useState(false);
+  const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false); // Local state for toggle
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // Initialize conversation
+  // Sync local state with prop
+  useEffect(() => {
+    setIsWebSearchEnabled(enableWebSearch);
+  }, [enableWebSearch]);
+
   useEffect(() => {
     const initConversation = async () => {
       try {
+        // Try to find an existing conversation for this window
+        // This is a simplification, you might want a more robust way 
+        // to associate a chat window with a conversation
         const res = await api.post('/chat/conversations', { 
           title: `${windowTitle} Chat` 
         });
         setConversationId(res.data._id);
-        // Load any existing messages
         loadMessages(res.data._id);
       } catch (error) {
-        console.error('Error initializing conversation:', error);
+        console.error('UniversalChatInterface: Error initializing conversation:', error);
       }
     };
 
@@ -45,7 +52,7 @@ const UniversalChatInterface = ({
       setMessages(res.data);
       setTimeout(scrollToBottom, 100);
     } catch (error) {
-      console.error('Error loading messages:', error);
+      console.error('UniversalChatInterface: Error loading messages:', error);
     }
   };
 
@@ -57,7 +64,6 @@ const UniversalChatInterface = ({
     scrollToBottom();
   }, [messages]);
 
-  // For News Window: Load saved query
   useEffect(() => {
     if (isNewsWindow) {
       const loadQuery = async () => {
@@ -68,7 +74,7 @@ const UniversalChatInterface = ({
             setIsMonitoring(true);
           }
         } catch (error) {
-          console.error('Error loading news query:', error);
+          console.error('UniversalChatInterface: Error loading news query:', error);
         }
       };
       loadQuery();
@@ -93,30 +99,31 @@ const UniversalChatInterface = ({
     }
 
     try {
+      let aiMessageData;
       if (isNewsWindow) {
-        // For news window, use the special news fetch endpoint
         const res = await api.post('/news/fetch', {
           topic: messageText,
           conversationId
         });
-        
-        const aiMessage = {
+        aiMessageData = {
           text: res.data.message,
           sender: 'ai',
           timestamp: new Date()
         };
-        setMessages(prev => [...prev, aiMessage]);
       } else {
-        // For other windows, use standard chat
+        // For all other windows, including main chat, use standard chat endpoint
+        // and pass the webSearch flag
         const res = await api.post(`/chat/conversations/${conversationId}/messages`, {
-          text: messageText
+          text: messageText,
+          // Pass the current state of the web search toggle
+          searchEnabled: isWebSearchEnabled 
         });
-        
-        const aiMessage = res.data;
-        setMessages(prev => [...prev, aiMessage]);
+        aiMessageData = res.data;
       }
+      
+      setMessages(prev => [...prev, aiMessageData]);
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('UniversalChatInterface: Error sending message:', error);
       const errorMessage = {
         text: error.response?.data?.message || 'Sorry, I encountered an error processing your request.',
         sender: 'ai',
@@ -152,7 +159,6 @@ const UniversalChatInterface = ({
     }
   };
 
-  // News Window Specific Functions
   const handleNewsTopicChange = (e) => {
     setNewsTopic(e.target.value);
   };
@@ -166,7 +172,6 @@ const UniversalChatInterface = ({
         topic: newsTopic
       });
       setIsMonitoring(true);
-      // Send a message to the chat about the saved query
       const infoMessage = {
         text: `News monitoring activated for topic: "${newsTopic}". I will check for updates every 10 minutes.`,
         sender: 'system',
@@ -174,7 +179,7 @@ const UniversalChatInterface = ({
       };
       setMessages(prev => [...prev, infoMessage]);
     } catch (error) {
-      console.error('Error saving news query:', error);
+      console.error('UniversalChatInterface: Error saving news query:', error);
       const errorMessage = {
         text: 'Failed to activate news monitoring. Please try again.',
         sender: 'system',
@@ -189,7 +194,6 @@ const UniversalChatInterface = ({
       await api.delete(`/news/queries?windowId=${windowId}`);
       setIsMonitoring(false);
       setNewsTopic('');
-      // Send a message to the chat
       const infoMessage = {
         text: 'News monitoring deactivated.',
         sender: 'system',
@@ -197,7 +201,7 @@ const UniversalChatInterface = ({
       };
       setMessages(prev => [...prev, infoMessage]);
     } catch (error) {
-      console.error('Error deactivating news query:', error);
+      console.error('UniversalChatInterface: Error deactivating news query:', error);
       const errorMessage = {
         text: 'Failed to deactivate news monitoring. Please try again.',
         sender: 'system',
@@ -207,35 +211,55 @@ const UniversalChatInterface = ({
     }
   };
 
+  // Handler for toggling web search
+  const toggleWebSearch = () => {
+    setIsWebSearchEnabled(prev => !prev);
+  };
+
   return (
     <div className="flex flex-col h-full bg-bg-primary">
       {/* Header */}
-      <div className="bg-bg-secondary border-b border-border shadow-sm py-3 px-4 flex items-center">
-        <button
-          onClick={onBackToDashboard}
-          className="mr-3 p-2 rounded-md hover:bg-bg-primary focus:outline-none focus:ring-2 focus:ring-accent"
-          aria-label="Back to dashboard"
-        >
-          ← Dashboard
-        </button>
-        <div className="flex-1 min-w-0">
+      <div className="bg-bg-secondary border-b border-border shadow-sm py-3 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex items-center">
+          <button
+            onClick={onBackToDashboard}
+            className="mr-3 p-2 rounded-md hover:bg-bg-primary focus:outline-none focus:ring-2 focus:ring-accent text-sm"
+            aria-label="Back to dashboard"
+          >
+            ← Dashboard
+          </button>
           <h2 className="text-lg font-semibold text-text-primary truncate">
             {windowTitle} Chat
           </h2>
         </div>
+        
+        {/* Web Search Toggle (if enabled for this window) */}
+        {enableWebSearch && (
+          <div className="flex items-center">
+            <label className="flex items-center cursor-pointer text-sm">
+              <input
+                type="checkbox"
+                checked={isWebSearchEnabled}
+                onChange={toggleWebSearch}
+                className="mr-1 h-4 w-4 text-accent border-border rounded focus:ring-accent"
+              />
+              <span className={isWebSearchEnabled ? 'text-accent font-medium' : 'text-text-secondary'}>
+                Web Search
+              </span>
+            </label>
+          </div>
+        )}
       </div>
 
-      {/* Special UI for specific windows (rendered above messages) */}
       {renderSpecialUI && renderSpecialUI()}
 
-      {/* News Window Specific UI */}
       {isNewsWindow && (
         <div className="bg-bg-secondary border-b border-border p-3">
           <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
             <input
               type="text"
               placeholder="Enter a topic to monitor for news..."
-              className="flex-1 p-2 rounded border border-border bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+              className="flex-1 p-2 rounded border border-border bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent text-sm"
               value={newsTopic}
               onChange={handleNewsTopicChange}
               disabled={isMonitoring}
@@ -264,7 +288,6 @@ const UniversalChatInterface = ({
         </div>
       )}
 
-      {/* Messages Container */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {messages.length === 0 && !isLoading ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-4">
@@ -275,7 +298,9 @@ const UniversalChatInterface = ({
             <p className="text-text-secondary max-w-md">
               {isNewsWindow 
                 ? 'Ask me to find news about a topic, or enter a topic above to activate notifications.' 
-                : 'Start a conversation by typing a message below.'}
+                : enableWebSearch 
+                  ? 'Start a conversation. Enable "Web Search" to get live information.' 
+                  : 'Start a conversation by typing a message below.'}
             </p>
           </div>
         ) : (
@@ -334,7 +359,6 @@ const UniversalChatInterface = ({
         )}
       </div>
 
-      {/* Input Area - Sticky */}
       <div className="border-t border-border bg-bg-secondary p-3 sticky bottom-0">
         <form onSubmit={handleSubmit} className="flex items-end space-x-2">
           <div className="flex-1 relative">

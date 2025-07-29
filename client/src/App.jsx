@@ -3,9 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
 import { useDashboard } from './context/DashboardContext';
-import { useNews } from './context/NewsContext'; // Import useNews
+import { useNews } from './context/NewsContext';
 import AuthModal from './components/AuthModal';
-import UniversalChatInterface from './components/UniversalChatInterface'; // Import UniversalChatInterface
+import UniversalChatInterface from './components/UniversalChatInterface';
 import NotesSection from './components/NotesSection';
 import TaskManager from './components/TaskManager';
 import api from './services/api';
@@ -14,56 +14,89 @@ const App = () => {
   const { user, logout, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { layout, toggleLayout, customWindows, pinnedWindows, pinWindow, unpinWindow, addCustomWindow } = useDashboard();
-  const { loadNewsQuery } = useNews(); // Use news context
-  
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const { loadNewsQuery } = useNews();
+
+  // State for managing different views/tabs within the app
+  const [activeTab, setActiveTab] = useState('dashboard'); // Default to dashboard view
   const [activeConversation, setActiveConversation] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
-  const [searchQuery, setSearchQuery] = useState(''); // Global search state
-  const [activeFeatureWindow, setActiveFeatureWindow] = useState(null); // For feature window chats
+  const [searchQuery, setSearchQuery] = useState(''); // For potential global search
+  // State for managing feature window chats (Notes, Tasks, News, etc.)
+  const [activeFeatureWindow, setActiveFeatureWindow] = useState(null);
 
-  // Load conversations when user logs in
+  // Load user's conversations when they log in
   useEffect(() => {
     if (user) {
       loadConversations();
     }
-  }, [user]);
+  }, [user]); // Dependency array ensures this runs when 'user' changes
 
   const loadConversations = async () => {
     try {
       const res = await api.get('/chat/conversations');
       setConversations(res.data);
     } catch (error) {
-      console.error('Error loading conversations:', error);
+      console.error('App: Error loading conversations:', error);
+      // Optionally, show an error message to the user
     }
   };
 
+  // Function to create a new conversation/chat
   const createNewConversation = async (title = 'New Chat') => {
     try {
       const res = await api.post('/chat/conversations', { title });
       const newConversation = res.data;
+      // Update the local state with the new conversation
       setConversations([newConversation, ...conversations]);
       setActiveConversation(newConversation);
-      setActiveTab('chat');
+      // Optionally, switch to the chat view
+      // setActiveTab('chat'); 
     } catch (error) {
-      console.error('Error creating conversation:', error);
+      console.error('App: Error creating conversation:', error);
+      // Optionally, show an error message to the user
     }
   };
 
-  // Handler to open a feature window chat
+  // Function to open a specific feature window in chat mode
   const openFeatureWindowChat = (windowId, windowTitle) => {
     setActiveFeatureWindow({ id: windowId, title: windowTitle });
-    setActiveTab('feature-chat');
+    setActiveTab('feature-chat'); // Switch to the feature chat view
   };
 
-  // Handler to go back to dashboard from feature chat
+  // Function to navigate back to the main dashboard
   const handleBackToDashboard = () => {
     setActiveFeatureWindow(null);
-    setActiveTab('dashboard');
+    setActiveTab('dashboard'); // Switch back to dashboard view
   };
 
+  // --- NEW: Effect for handling initial routing based on auth state ---
+  // This effect runs after the initial authentication check is complete
+  useEffect(() => {
+    // Don't do anything while the auth state is still being determined
+    if (loading) {
+      console.log("App: Auth state is loading...");
+      return;
+    }
+
+    console.log(`App: Auth check complete. User: ${user ? 'Present' : 'Absent'}, Path: ${window.location.pathname}`);
+
+    // If the user is authenticated and they are on the root path (e.g., after a refresh),
+    // redirect them to the dashboard view.
+    if (user && window.location.pathname === '/') {
+      console.log("App: Authenticated user on root path, redirecting to dashboard view.");
+      setActiveTab('dashboard');
+    }
+
+    // If the user is not authenticated, the conditional rendering below
+    // will show the login/signup screen.
+    // No explicit action needed here for that case.
+
+  }, [user, loading]); // Re-run this effect if 'user' or 'loading' changes
+  // --- END OF NEW EFFECT ---
+
+  // Show a loading screen while checking authentication status
   if (loading) {
     return (
       <div className="min-h-screen bg-bg-primary flex items-center justify-center">
@@ -75,6 +108,7 @@ const App = () => {
     );
   }
 
+  // If the user is not authenticated, show the login/signup screen
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
@@ -117,7 +151,9 @@ const App = () => {
     );
   }
 
-  // Dashboard Window Cards Data (including custom windows)
+  // --- If the user IS authenticated, render the main application UI ---
+
+  // Define the base set of available windows
   const baseWindowCards = [
     {
       id: 'chat',
@@ -177,16 +213,16 @@ const App = () => {
     },
   ];
 
-  // Combine base windows with custom windows
+  // Combine base windows with any user-created custom windows
   const allWindowCards = [...baseWindowCards, ...customWindows];
 
-  // Separate pinned and unpinned windows
+  // Separate pinned and unpinned windows for display
   const pinnedCards = allWindowCards.filter(card => pinnedWindows.includes(card.id));
   const unpinnedCards = allWindowCards.filter(card => !pinnedWindows.includes(card.id));
 
   return (
     <div className="flex flex-col h-screen bg-bg-primary text-text-primary">
-      {/* Header */}
+      {/* Application Header */}
       <header className="bg-bg-secondary border-b border-border shadow-sm py-4 px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
         <div className="flex items-center w-full sm:w-auto">
           <div className="w-10 h-10 bg-accent rounded-full flex items-center justify-center mr-3">
@@ -195,7 +231,7 @@ const App = () => {
           <h1 className="text-xl font-bold text-text-primary">Smart Assistant</h1>
         </div>
 
-        {/* Global Search Bar */}
+        {/* Global Search Bar (Placeholder for future implementation) */}
         <div className="flex-1 max-w-2xl w-full">
           <div className="relative">
             <input
@@ -204,6 +240,8 @@ const App = () => {
               className="w-full py-2 px-4 pl-10 rounded-lg border border-border bg-bg-secondary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              // Disabled for now as global search logic isn't fully implemented here
+              disabled
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg className="h-5 w-5 text-text-secondary" fill="currentColor" viewBox="0 0 20 20">
@@ -213,6 +251,7 @@ const App = () => {
           </div>
         </div>
 
+        {/* User Controls */}
         <div className="flex items-center space-x-4">
           <span className="text-text-secondary text-sm hidden md:inline">Welcome, {user.email}</span>
           <button
@@ -221,9 +260,9 @@ const App = () => {
             aria-label="Toggle theme"
           >
             {theme === 'light' ? (
-              <span className="text-xl">🌙</span>
+              <span className="text-xl">🌙</span> // Moon icon for light mode
             ) : (
-              <span className="text-xl">☀️</span>
+              <span className="text-xl">☀️</span> // Sun icon for dark mode
             )}
           </button>
           <button
@@ -235,7 +274,9 @@ const App = () => {
         </div>
       </header>
 
+      {/* Main Content Area */}
       <div className="flex-1 overflow-hidden">
+        {/* Dashboard View */}
         {activeTab === 'dashboard' && (
           <div className="p-6 h-full overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
@@ -257,7 +298,7 @@ const App = () => {
                         accentColor: 'bg-gray-500' // Default color
                       };
                       const createdWindow = addCustomWindow(newWindow);
-                      // Optionally open the new window
+                      // Optionally open the new window immediately
                       // openFeatureWindowChat(createdWindow.id, createdWindow.title);
                     }
                   }}
@@ -270,7 +311,7 @@ const App = () => {
                 </button>
               </div>
             </div>
-            
+
             {/* Pinned Windows Section */}
             {pinnedCards.length > 0 && (
               <>
@@ -280,15 +321,15 @@ const App = () => {
                   </svg>
                   Pinned Windows
                 </h3>
-                <div className={layout === 'grid' 
-                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8" 
+                <div className={layout === 'grid'
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
                   : "space-y-4 mb-8"
                 }>
                   {pinnedCards.map((card) => (
-                    <WindowCard 
-                      key={card.id} 
-                      card={card} 
-                      layout={layout} 
+                    <WindowCard
+                      key={card.id}
+                      card={card}
+                      layout={layout}
                       onCreateChat={createNewConversation}
                       openFeatureWindowChat={openFeatureWindowChat}
                       isPinned={true}
@@ -298,18 +339,18 @@ const App = () => {
                 </div>
               </>
             )}
-            
+
             {/* All Windows Section */}
             <h3 className="text-lg font-semibold text-text-primary mb-3">All Windows</h3>
-            <div className={layout === 'grid' 
-              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" 
+            <div className={layout === 'grid'
+              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
               : "space-y-4"
             }>
               {unpinnedCards.map((card) => (
-                <WindowCard 
-                  key={card.id} 
-                  card={card} 
-                  layout={layout} 
+                <WindowCard
+                  key={card.id}
+                  card={card}
+                  layout={layout}
                   onCreateChat={createNewConversation}
                   openFeatureWindowChat={openFeatureWindowChat}
                   isPinned={false}
@@ -320,22 +361,30 @@ const App = () => {
           </div>
         )}
 
+        {/* Main Chat Hub View (if you want a separate view for the main chat) */}
         {activeTab === 'chat' && activeConversation && (
           <UniversalChatInterface
             windowId="main-chat"
             windowTitle="Chat Hub"
             onBackToDashboard={() => setActiveTab('dashboard')}
+            // Enable web search for the main chat hub
+            enableWebSearch={true}
           />
         )}
 
+        {/* Feature Window Chat View (Notes, Tasks, News, etc. in chat mode) */}
         {activeTab === 'feature-chat' && activeFeatureWindow && (
           <UniversalChatInterface
             windowId={activeFeatureWindow.id}
             windowTitle={activeFeatureWindow.title}
             onBackToDashboard={handleBackToDashboard}
+            // Flags for specific window behaviors
             isNewsWindow={activeFeatureWindow.id === 'news'}
             isTaskManager={activeFeatureWindow.id === 'tasks'}
             isNotesWindow={activeFeatureWindow.id === 'notes'}
+            // Enable web search for ALL feature chats
+            enableWebSearch={true}
+            // Function to render special UI elements for specific windows
             renderSpecialUI={() => {
               if (activeFeatureWindow.id === 'tasks') {
                 return (
@@ -376,6 +425,7 @@ const App = () => {
           />
         )}
 
+        {/* Full Page Views for specific features */}
         {activeTab === 'notes-full' && (
           <NotesSection />
         )}
@@ -384,42 +434,44 @@ const App = () => {
           <TaskManager />
         )}
 
-        {/* TODO: Implement other sections (crypto, fitness, prompts, etc.) */}
-        {activeTab !== 'dashboard' && 
-         activeTab !== 'chat' && 
-         activeTab !== 'feature-chat' && 
-         activeTab !== 'notes-full' && 
-         activeTab !== 'tasks-full' && (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 bg-bg-primary">
-            <h2 className="text-2xl font-bold text-text-primary mb-2">
-              {allWindowCards.find(c => c.id === activeTab)?.title || 'Feature'}
-            </h2>
-            <p className="text-text-secondary mb-6">This section is under development.</p>
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className="bg-bg-secondary border border-border text-text-primary py-2 px-4 rounded-lg font-medium hover:bg-bg-primary transition"
-            >
-              Back to Dashboard
-            </button>
-          </div>
-        )}
+        {/* Placeholder for other unimplemented views */}
+        {activeTab !== 'dashboard' &&
+          activeTab !== 'chat' &&
+          activeTab !== 'feature-chat' &&
+          activeTab !== 'notes-full' &&
+          activeTab !== 'tasks-full' && (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 bg-bg-primary">
+              <h2 className="text-2xl font-bold text-text-primary mb-2">
+                {allWindowCards.find(c => c.id === activeTab)?.title || 'Feature'}
+              </h2>
+              <p className="text-text-secondary mb-6">This section is under development.</p>
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className="bg-bg-secondary border border-border text-text-primary py-2 px-4 rounded-lg font-medium hover:bg-bg-primary transition"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          )}
       </div>
     </div>
   );
 };
 
-// WindowCard Component (extracted for reusability)
+// --- WindowCard Component ---
+// This component renders an individual window card on the dashboard.
 const WindowCard = ({ card, layout, onCreateChat, openFeatureWindowChat, isPinned, onPin, onUnpin }) => {
-  
+
+  // Handler for when a window card is clicked
   const handleCardClick = () => {
     if (card.id === 'chat') {
+      // For the main chat hub, create a new conversation
       onCreateChat();
     } else if (['notes', 'tasks', 'news', 'crypto', 'fitness', 'prompts'].includes(card.id) || card.isCustom) {
-      // Open in the universal chat interface
+      // For other feature windows, open them in the universal chat interface
       openFeatureWindowChat(card.id, card.title);
     } else {
-      // Fallback to tab-based navigation for other sections
-      // You can implement specific views for these later
+      // Fallback for any other unhandled window types
       alert(`${card.title} view is not yet implemented.`);
     }
   };
@@ -427,16 +479,16 @@ const WindowCard = ({ card, layout, onCreateChat, openFeatureWindowChat, isPinne
   return (
     <div
       className={`bg-bg-secondary rounded-2xl shadow-md border border-border overflow-hidden transition-all duration-200 hover:shadow-lg ${
-        layout === 'grid' 
-          ? 'cursor-pointer flex flex-col h-full' 
+        layout === 'grid'
+          ? 'cursor-pointer flex flex-col h-full'
           : 'cursor-pointer flex items-center p-4'
-      } ${isPinned ? 'ring-2 ring-accent' : ''}`}
+        } ${isPinned ? 'ring-2 ring-accent' : ''}`}
       onClick={handleCardClick}
     >
       {layout === 'grid' ? (
-        // Grid Layout
+        // Grid Layout for the window card
         <>
-          {/* Accent Border Top */}
+          {/* Accent color bar at the top */}
           <div className={`h-2 ${card.accentColor}`}></div>
           <div className="p-5 flex flex-col flex-1">
             <div className="flex justify-between items-start mb-3">
@@ -458,18 +510,19 @@ const WindowCard = ({ card, layout, onCreateChat, openFeatureWindowChat, isPinne
             <div className="flex justify-between items-center">
               <button
                 onClick={(e) => {
+                  // Stop the click event from propagating to the card's onClick
                   e.stopPropagation();
                   if (isPinned) {
-                    onUnpin();
+                    onUnpin(); // Unpin the window
                   } else {
-                    onPin();
+                    onPin(); // Pin the window
                   }
                 }}
                 className={`text-xs px-2 py-1 rounded ${
-                  isPinned 
-                    ? 'bg-accent text-white' 
+                  isPinned
+                    ? 'bg-accent text-white'
                     : 'bg-bg-primary border border-border text-text-secondary hover:bg-bg-secondary'
-                }`}
+                  }`}
               >
                 {isPinned ? 'Pinned' : 'Pin'}
               </button>
@@ -482,7 +535,7 @@ const WindowCard = ({ card, layout, onCreateChat, openFeatureWindowChat, isPinne
           </div>
         </>
       ) : (
-        // List Layout
+        // List Layout for the window card
         <>
           <div className={`w-1 h-full ${card.accentColor} mr-4`}></div>
           <div className="flex-1 min-w-0">
@@ -514,10 +567,10 @@ const WindowCard = ({ card, layout, onCreateChat, openFeatureWindowChat, isPinne
                 }
               }}
               className={`text-xs px-2 py-1 rounded ${
-                isPinned 
-                  ? 'bg-accent text-white' 
+                isPinned
+                  ? 'bg-accent text-white'
                   : 'bg-bg-primary border border-border text-text-secondary hover:bg-bg-secondary'
-              }`}
+                }`}
             >
               {isPinned ? 'Pinned' : 'Pin'}
             </button>
@@ -532,5 +585,6 @@ const WindowCard = ({ card, layout, onCreateChat, openFeatureWindowChat, isPinne
     </div>
   );
 };
+// --- End of WindowCard Component ---
 
 export default App;

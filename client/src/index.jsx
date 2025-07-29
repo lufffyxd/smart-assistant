@@ -6,14 +6,15 @@ import './index.css';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { DashboardProvider } from './context/DashboardContext';
-import { NewsProvider } from './context/NewsContext'; // Add this import
+import { NewsProvider } from './context/NewsContext';
 
+// Ensure AuthProvider is at the root so App can access auth state
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AuthProvider>
       <ThemeProvider>
         <DashboardProvider>
-          <NewsProvider> {/* Add NewsProvider */}
+          <NewsProvider>
             <App />
           </NewsProvider>
         </DashboardProvider>
