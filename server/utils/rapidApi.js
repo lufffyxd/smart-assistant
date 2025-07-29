@@ -19,7 +19,7 @@ const searchNews = async (topic, pageSize = 5) => {
     method: 'GET',
     // --- UPDATE THIS URL TO THE CORRECT ENDPOINT FROM RAPIDAPI DOCS ---
     // Based on your curl example and the response, it might be something like:
-    url: 'https://bing-search-apis.p.rapidapi.com/api/rapid/web_search?keyword=how-to-use-excel-for-free&page=0&size=30', // <-- VERIFY THIS
+    url: 'https://bing-search-apis.p.rapidapi.com/api/rapid/web_search', 
     // Or if there's a specific news endpoint: 
     // url: 'https://bing-search-apis.p.rapidapi.com/api/rapid/news_search', // <-- VERIFY THIS TOO
     params: {
