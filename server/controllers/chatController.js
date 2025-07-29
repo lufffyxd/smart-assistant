@@ -3,14 +3,14 @@ const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 // Import the OpenRouter utility function
 const { callOpenRouter } = require('../utils/openRouter');
-// Import the RapidAPI search function
-const { searchNews } = require('../utils/rapidApi');
+// Import the web search function (LangSearch)
+const { searchWeb } = require('../utils/webSearch'); // Updated import
 
-// --- Existing Controller Functions (getConversations, createConversation, getMessages) ---
-// These functions remain unchanged from your previous implementation.
-// I'm including placeholders to show the complete file structure.
-// Please ensure your existing logic for these is preserved.
+// --- Controller Functions ---
 
+// @desc    Get all conversations for a user
+// @route   GET /api/chat/conversations
+// @access  Private
 const getConversations = async (req, res) => {
   try {
     const conversations = await Conversation.find({ userId: req.user._id })
@@ -22,12 +22,24 @@ const getConversations = async (req, res) => {
   }
 };
 
+// @desc    Create a new conversation
+// @route   POST /api/chat/conversations
+// @access  Private
 const createConversation = async (req, res) => {
   try {
-    const conversation = await Conversation.create({
+    const { title, windowId } = req.body; // Accept optional windowId
+
+    const conversationData = {
       userId: req.user._id,
-      title: req.body.title
-    });
+      title: title || 'New Chat'
+    };
+
+    // If a windowId is provided, associate the conversation with it
+    if (windowId) {
+      conversationData.windowId = windowId;
+    }
+
+    const conversation = await Conversation.create(conversationData);
     res.status(201).json(conversation);
   } catch (error) {
     console.error('[Chat Controller] Error in createConversation:', error);
@@ -35,18 +47,59 @@ const createConversation = async (req, res) => {
   }
 };
 
+// @desc    Get messages for a conversation with pagination
+// @route   GET /api/chat/conversations/:id/messages
+// @access  Private
 const getMessages = async (req, res) => {
   try {
-    const messages = await Message.find({ conversationId: req.params.id })
-      .sort({ createdAt: 1 });
-    res.json(messages);
+    // Get pagination parameters from query string, with defaults
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const conversationId = req.params.id;
+
+    // Ensure page and limit are positive
+    if (page < 1 || limit < 1) {
+        return res.status(400).json({ message: 'Page and limit must be positive integers.' });
+    }
+
+    // Calculate the number of documents to skip
+    const skip = (page - 1) * limit;
+
+    // Fetch messages with pagination
+    // Sort by createdAt ASC to get the oldest messages first for correct pagination display
+    // The frontend will reverse them for display (newest at bottom)
+    const messages = await Message.find({ conversationId })
+      .sort({ createdAt: 1 }) // ASC order
+      .skip(skip)
+      .limit(limit);
+
+    // Get total count for pagination info
+    const totalMessages = await Message.countDocuments({ conversationId });
+    const totalPages = Math.ceil(totalMessages / limit);
+
+    res.json({
+      messages,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalMessages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+        // You can include these if the frontend needs them
+        // messagesPerPage: limit,
+        // messagesReturned: messages.length
+      }
+    });
   } catch (error) {
     console.error('[Chat Controller] Error in getMessages:', error);
     res.status(500).json({ message: 'Server error while fetching messages' });
   }
 };
 
-// --- UPDATED sendMessage Function ---
+
+// @desc    Send a message in a conversation and get AI response
+// @route   POST /api/chat/conversations/:id/messages
+// @access  Private
 const sendMessage = async (req, res) => {
   try {
     // Extract text and the new searchEnabled flag from the request body
@@ -80,9 +133,8 @@ const sendMessage = async (req, res) => {
         console.log(`[Chat Controller] Web search enabled, searching for: "${text}"`);
         // Refine the search query if needed, limit length
         const searchQuery = text.substring(0, 100);
-        // Call the searchNews function from rapidApi.js
-        // This function now uses the Bing Search API
-        const searchData = await searchNews(searchQuery, 3); // Get top 3 results
+        // Call the searchWeb function (now using LangSearch)
+        const searchData = await searchWeb(searchQuery, 3); // Get top 3 results
         searchResults = searchData.articles || [];
         console.log(`[Chat Controller] Web search completed. Found ${searchResults.length} results.`);
       } catch (searchError) {
@@ -121,6 +173,6 @@ const sendMessage = async (req, res) => {
 module.exports = {
   getConversations,
   createConversation,
-  getMessages,
+  getMessages, // Export the updated function
   sendMessage // Export the updated function
 };

@@ -2,22 +2,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 
-const UniversalChatInterface = ({ 
-  windowId, 
-  windowTitle, 
+const UniversalChatInterface = ({
+  windowId,
+  windowTitle,
   onBackToDashboard,
-  enableWebSearch = false, // New prop
-  isNewsWindow = false,
-  isTaskManager = false,
-  isNotesWindow = false,
-  renderSpecialUI 
+  enableWebSearch = false, // Prop to enable/disable web search toggle
 }) => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState(null);
-  const [newsTopic, setNewsTopic] = useState(''); 
-  const [isMonitoring, setIsMonitoring] = useState(false);
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false); // Local state for toggle
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -27,30 +21,37 @@ const UniversalChatInterface = ({
     setIsWebSearchEnabled(enableWebSearch);
   }, [enableWebSearch]);
 
+  // Initialize conversation
   useEffect(() => {
     const initConversation = async () => {
       try {
-        // Try to find an existing conversation for this window
-        // This is a simplification, you might want a more robust way 
-        // to associate a chat window with a conversation
-        const res = await api.post('/chat/conversations', { 
-          title: `${windowTitle} Chat` 
+        // Try to find or create a conversation linked to this specific window
+        // We can use the windowId to find or create a unique conversation for it
+        const res = await api.post('/chat/conversations', {
+          title: `${windowTitle}`, // Use window title as conversation title
+          windowId: windowId // Pass windowId to link conversation
         });
         setConversationId(res.data._id);
         loadMessages(res.data._id);
       } catch (error) {
         console.error('UniversalChatInterface: Error initializing conversation:', error);
+        // Handle error, maybe show a message to the user
       }
     };
 
     initConversation();
-  }, [windowTitle]);
+  }, [windowTitle, windowId]);
 
   const loadMessages = async (convId) => {
+    if (!convId) return;
     try {
-      const res = await api.get(`/chat/conversations/${convId}/messages`);
-      setMessages(res.data);
-      setTimeout(scrollToBottom, 100);
+      // Load the last 15 messages initially
+      const res = await api.get(`/chat/conversations/${convId}/messages?limit=15&page=1`);
+      // Assuming API returns { messages: [...], currentPage, totalPages, hasNextPage, hasPrevPage }
+      // Messages are sorted oldest first by backend, so we reverse for display (newest at bottom)
+      setMessages(res.data.messages.reverse());
+      // For simplicity, we're not handling pagination here yet.
+      // scrollToBottom is handled by the effect below.
     } catch (error) {
       console.error('UniversalChatInterface: Error loading messages:', error);
     }
@@ -60,26 +61,10 @@ const UniversalChatInterface = ({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  useEffect(() => {
-    if (isNewsWindow) {
-      const loadQuery = async () => {
-        try {
-          const res = await api.get(`/news/queries?windowId=${windowId}`);
-          if (res.data && res.data.topic) {
-            setNewsTopic(res.data.topic);
-            setIsMonitoring(true);
-          }
-        } catch (error) {
-          console.error('UniversalChatInterface: Error loading news query:', error);
-        }
-      };
-      loadQuery();
-    }
-  }, [isNewsWindow, windowId]);
 
   const sendMessage = async (messageText) => {
     if (!messageText.trim() || !conversationId || isLoading) return;
@@ -90,37 +75,24 @@ const UniversalChatInterface = ({
       timestamp: new Date()
     };
 
+    // Optimistically add user message to UI
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsLoading(true);
-    
+
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
 
     try {
-      let aiMessageData;
-      if (isNewsWindow) {
-        const res = await api.post('/news/fetch', {
-          topic: messageText,
-          conversationId
-        });
-        aiMessageData = {
-          text: res.data.message,
-          sender: 'ai',
-          timestamp: new Date()
-        };
-      } else {
-        // For all other windows, including main chat, use standard chat endpoint
-        // and pass the webSearch flag
-        const res = await api.post(`/chat/conversations/${conversationId}/messages`, {
-          text: messageText,
-          // Pass the current state of the web search toggle
-          searchEnabled: isWebSearchEnabled 
-        });
-        aiMessageData = res.data;
-      }
-      
+      // Send message to backend, including the webSearch flag
+      const res = await api.post(`/chat/conversations/${conversationId}/messages`, {
+        text: messageText,
+        searchEnabled: isWebSearchEnabled // Pass the current toggle state
+      });
+
+      const aiMessageData = res.data;
+      // Add AI response to UI
       setMessages(prev => [...prev, aiMessageData]);
     } catch (error) {
       console.error('UniversalChatInterface: Error sending message:', error);
@@ -147,7 +119,9 @@ const UniversalChatInterface = ({
     }
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+      // Adjust height based on scrollHeight, with a max
+      const newHeight = Math.min(textareaRef.current.scrollHeight, 150); // Max 150px
+      textareaRef.current.style.height = `${newHeight}px`;
     }
   };
 
@@ -155,59 +129,8 @@ const UniversalChatInterface = ({
     setInputMessage(e.target.value);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
-  };
-
-  const handleNewsTopicChange = (e) => {
-    setNewsTopic(e.target.value);
-  };
-
-  const saveNewsQuery = async () => {
-    if (!newsTopic.trim()) return;
-    
-    try {
-      await api.post('/news/queries', {
-        windowId,
-        topic: newsTopic
-      });
-      setIsMonitoring(true);
-      const infoMessage = {
-        text: `News monitoring activated for topic: "${newsTopic}". I will check for updates every 10 minutes.`,
-        sender: 'system',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, infoMessage]);
-    } catch (error) {
-      console.error('UniversalChatInterface: Error saving news query:', error);
-      const errorMessage = {
-        text: 'Failed to activate news monitoring. Please try again.',
-        sender: 'system',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    }
-  };
-
-  const deactivateNewsQuery = async () => {
-    try {
-      await api.delete(`/news/queries?windowId=${windowId}`);
-      setIsMonitoring(false);
-      setNewsTopic('');
-      const infoMessage = {
-        text: 'News monitoring deactivated.',
-        sender: 'system',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, infoMessage]);
-    } catch (error) {
-      console.error('UniversalChatInterface: Error deactivating news query:', error);
-      const errorMessage = {
-        text: 'Failed to deactivate news monitoring. Please try again.',
-        sender: 'system',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      const newHeight = Math.min(textareaRef.current.scrollHeight, 150);
+      textareaRef.current.style.height = `${newHeight}px`;
     }
   };
 
@@ -229,10 +152,10 @@ const UniversalChatInterface = ({
             ← Dashboard
           </button>
           <h2 className="text-lg font-semibold text-text-primary truncate">
-            {windowTitle} Chat
+            {windowTitle}
           </h2>
         </div>
-        
+
         {/* Web Search Toggle (if enabled for this window) */}
         {enableWebSearch && (
           <div className="flex items-center">
@@ -251,43 +174,7 @@ const UniversalChatInterface = ({
         )}
       </div>
 
-      {renderSpecialUI && renderSpecialUI()}
-
-      {isNewsWindow && (
-        <div className="bg-bg-secondary border-b border-border p-3">
-          <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-            <input
-              type="text"
-              placeholder="Enter a topic to monitor for news..."
-              className="flex-1 p-2 rounded border border-border bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent text-sm"
-              value={newsTopic}
-              onChange={handleNewsTopicChange}
-              disabled={isMonitoring}
-            />
-            {isMonitoring ? (
-              <button
-                onClick={deactivateNewsQuery}
-                className="bg-red-500 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-red-600 transition"
-              >
-                Deactivate Monitoring
-              </button>
-            ) : (
-              <button
-                onClick={saveNewsQuery}
-                className="bg-accent text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-accent-hover transition"
-              >
-                Activate Notifications
-              </button>
-            )}
-          </div>
-          <p className="text-text-secondary text-xs mt-2">
-            {isMonitoring 
-              ? `Monitoring for news on "${newsTopic}"` 
-              : 'Enter a topic and activate notifications to get updates.'}
-          </p>
-        </div>
-      )}
-
+      {/* Messages Container */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {messages.length === 0 && !isLoading ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-4">
@@ -296,42 +183,32 @@ const UniversalChatInterface = ({
             </div>
             <h3 className="text-xl font-semibold text-text-primary mb-2">Welcome to {windowTitle}</h3>
             <p className="text-text-secondary max-w-md">
-              {isNewsWindow 
-                ? 'Ask me to find news about a topic, or enter a topic above to activate notifications.' 
-                : enableWebSearch 
-                  ? 'Start a conversation. Enable "Web Search" to get live information.' 
-                  : 'Start a conversation by typing a message below.'}
+              {enableWebSearch
+                ? 'Start a conversation. Enable "Web Search" to get live information.'
+                : 'Start a conversation by typing a message below.'}
             </p>
           </div>
         ) : (
           <>
             {messages.map((message, index) => (
               <div
-                key={index}
-                className={`flex ${message.sender === 'user' ? 'justify-end' : 
-                          message.sender === 'system' ? 'justify-center' : 'justify-start'}`}
+                key={`${message.timestamp}-${index}`} // More robust key
+                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
                   className={`max-w-[85%] rounded-3xl px-4 py-3 ${
                     message.sender === 'user'
                       ? 'bg-accent text-white rounded-br-none'
-                      : message.sender === 'system'
-                        ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-800'
-                        : 'bg-bg-secondary border border-border text-text-primary rounded-bl-none shadow-sm'
+                      : 'bg-bg-secondary border border-border text-text-primary rounded-bl-none shadow-sm'
                   }`}
                 >
                   <div className="whitespace-pre-wrap break-words">{message.text}</div>
                   <div
                     className={`text-xs mt-1 flex justify-between ${
-                      message.sender === 'user' ? 'text-accent-200' : 
-                      message.sender === 'system' ? 'text-yellow-700 dark:text-yellow-400' : 
-                      'text-text-secondary'
+                      message.sender === 'user' ? 'text-accent-200' : 'text-text-secondary'
                     }`}
                   >
-                    <span>
-                      {message.sender === 'user' ? 'You' : 
-                       message.sender === 'system' ? 'System' : 'AI'}
-                    </span>
+                    <span>{message.sender === 'user' ? 'You' : 'AI'}</span>
                     <span>
                       {new Date(message.timestamp).toLocaleTimeString([], {
                         hour: '2-digit',
@@ -354,11 +231,12 @@ const UniversalChatInterface = ({
                 </div>
               </div>
             )}
-            <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} /> {/* Element to scroll to */}
           </>
         )}
       </div>
 
+      {/* Input Area - Sticky */}
       <div className="border-t border-border bg-bg-secondary p-3 sticky bottom-0">
         <form onSubmit={handleSubmit} className="flex items-end space-x-2">
           <div className="flex-1 relative">
@@ -367,8 +245,8 @@ const UniversalChatInterface = ({
               value={inputMessage}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder={isNewsWindow ? "Ask about a news topic or enter one above..." : "Type your message..."}
-              className="w-full border border-border rounded-2xl py-3 px-4 focus:ring-2 focus:ring-accent focus:border-transparent resize-none bg-bg-secondary text-text-primary max-h-32"
+              placeholder="Type your message..."
+              className="w-full border border-border rounded-2xl py-3 px-4 focus:ring-2 focus:ring-accent focus:border-transparent resize-none bg-bg-secondary text-text-primary max-h-40" // Increased max height
               rows="1"
               disabled={isLoading}
             />

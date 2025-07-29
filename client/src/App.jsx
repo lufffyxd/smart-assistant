@@ -2,21 +2,18 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
-import { useDashboard } from './context/DashboardContext';
-import { useNews } from './context/NewsContext';
+import { useDashboard } from './context/DashboardContext'; // Import useDashboard
 import AuthModal from './components/AuthModal';
 import UniversalChatInterface from './components/UniversalChatInterface';
-import NotesSection from './components/NotesSection';
-import TaskManager from './components/TaskManager';
+import MultiPageNotesInterface from './components/MultiPageNotesInterface'; // Import Notes
+import TaskManager from './components/TaskManager'; // Import Task Manager
+import NewsWindow from './components/NewsWindow'; // Import News Window
 import api from './services/api';
 
 const App = () => {
   const { user, logout, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { layout, toggleLayout, customWindows, pinnedWindows, pinWindow, unpinWindow, addCustomWindow } = useDashboard();
-  const { loadNewsQuery } = useNews();
-
-  // State for managing different views/tabs within the app
+  const { layout, toggleLayout, customWindows, pinnedWindows, pinWindow, unpinWindow, addCustomWindow } = useDashboard(); // Use dashboard context
   const [activeTab, setActiveTab] = useState('dashboard'); // Default to dashboard view
   const [activeConversation, setActiveConversation] = useState(null);
   const [conversations, setConversations] = useState([]);
@@ -26,7 +23,7 @@ const App = () => {
   // State for managing feature window chats (Notes, Tasks, News, etc.)
   const [activeFeatureWindow, setActiveFeatureWindow] = useState(null);
 
-  // Load user's conversations when they log in
+  // Load conversations when user logs in
   useEffect(() => {
     if (user) {
       loadConversations();
@@ -51,18 +48,35 @@ const App = () => {
       // Update the local state with the new conversation
       setConversations([newConversation, ...conversations]);
       setActiveConversation(newConversation);
-      // Optionally, switch to the chat view
-      // setActiveTab('chat'); 
+      // Switch to the chat view
+      setActiveTab('chat'); 
     } catch (error) {
       console.error('App: Error creating conversation:', error);
       // Optionally, show an error message to the user
     }
   };
 
-  // Function to open a specific feature window in chat mode
-  const openFeatureWindowChat = (windowId, windowTitle) => {
+  // Function to open a specific feature window in chat mode or its dedicated view
+  const openFeatureWindow = (windowId, windowTitle) => {
+    // Set the active feature window state
     setActiveFeatureWindow({ id: windowId, title: windowTitle });
-    setActiveTab('feature-chat'); // Switch to the feature chat view
+    
+    // Determine which tab/view to activate based on window ID
+    switch (windowId) {
+      case 'notes':
+        setActiveTab('notes-window'); // Dedicated notes view
+        break;
+      case 'tasks':
+        setActiveTab('tasks-window'); // Dedicated tasks view
+        break;
+      case 'news':
+        setActiveTab('news-window'); // Dedicated news view
+        break;
+      // Add cases for 'crypto', 'fitness', 'prompts' if/when implemented
+      default:
+        // For custom windows or unhandled IDs, open in feature chat
+        setActiveTab('feature-chat');
+    }
   };
 
   // Function to navigate back to the main dashboard
@@ -231,7 +245,7 @@ const App = () => {
           <h1 className="text-xl font-bold text-text-primary">Smart Assistant</h1>
         </div>
 
-        {/* Global Search Bar (Placeholder for future implementation) */}
+        {/* Global Search Bar */}
         <div className="flex-1 max-w-2xl w-full">
           <div className="relative">
             <input
@@ -299,7 +313,7 @@ const App = () => {
                       };
                       const createdWindow = addCustomWindow(newWindow);
                       // Optionally open the new window immediately
-                      // openFeatureWindowChat(createdWindow.id, createdWindow.title);
+                      // openFeatureWindow(createdWindow.id, createdWindow.title);
                     }
                   }}
                   className="bg-accent text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-accent-hover transition flex items-center"
@@ -321,17 +335,17 @@ const App = () => {
                   </svg>
                   Pinned Windows
                 </h3>
-                <div className={layout === 'grid'
-                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
+                <div className={layout === 'grid' 
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8" 
                   : "space-y-4 mb-8"
                 }>
                   {pinnedCards.map((card) => (
-                    <WindowCard
-                      key={card.id}
-                      card={card}
-                      layout={layout}
+                    <WindowCard 
+                      key={card.id} 
+                      card={card} 
+                      layout={layout} 
                       onCreateChat={createNewConversation}
-                      openFeatureWindowChat={openFeatureWindowChat}
+                      openFeatureWindow={openFeatureWindow} // Updated prop
                       isPinned={true}
                       onUnpin={() => unpinWindow(card.id)}
                     />
@@ -339,20 +353,20 @@ const App = () => {
                 </div>
               </>
             )}
-
+            
             {/* All Windows Section */}
             <h3 className="text-lg font-semibold text-text-primary mb-3">All Windows</h3>
-            <div className={layout === 'grid'
-              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+            <div className={layout === 'grid' 
+              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" 
               : "space-y-4"
             }>
               {unpinnedCards.map((card) => (
-                <WindowCard
-                  key={card.id}
-                  card={card}
-                  layout={layout}
+                <WindowCard 
+                  key={card.id} 
+                  card={card} 
+                  layout={layout} 
                   onCreateChat={createNewConversation}
-                  openFeatureWindowChat={openFeatureWindowChat}
+                  openFeatureWindow={openFeatureWindow} // Updated prop
                   isPinned={false}
                   onPin={() => pinWindow(card.id)}
                 />
@@ -361,7 +375,7 @@ const App = () => {
           </div>
         )}
 
-        {/* Main Chat Hub View (if you want a separate view for the main chat) */}
+        {/* General Chat Hub View */}
         {activeTab === 'chat' && activeConversation && (
           <UniversalChatInterface
             windowId="main-chat"
@@ -372,7 +386,26 @@ const App = () => {
           />
         )}
 
-        {/* Feature Window Chat View (Notes, Tasks, News, etc. in chat mode) */}
+        {/* Block Note Window View */}
+        {activeTab === 'notes-window' && (
+          <MultiPageNotesInterface
+            windowId="block-note-main" // Unique ID for the main notes window
+            windowTitle="Block Note"
+            onBackToDashboard={handleBackToDashboard}
+          />
+        )}
+
+        {/* Task Manager Window View */}
+        {activeTab === 'tasks-window' && (
+          <TaskManager />
+        )}
+
+        {/* News Window View */}
+        {activeTab === 'news-window' && (
+          <NewsWindow />
+        )}
+
+        {/* Feature Window Chat View (for custom windows or unimplemented base windows) */}
         {activeTab === 'feature-chat' && activeFeatureWindow && (
           <UniversalChatInterface
             windowId={activeFeatureWindow.id}
@@ -386,60 +419,30 @@ const App = () => {
             enableWebSearch={true}
             // Function to render special UI elements for specific windows
             renderSpecialUI={() => {
-              if (activeFeatureWindow.id === 'tasks') {
+              // This is a placeholder. You can add specific UI for certain windows here.
+              // For example, if you wanted a special header for the 'news' window:
+              /*
+              if (activeFeatureWindow.id === 'news') {
                 return (
                   <div className="bg-bg-secondary border-b border-border p-3">
-                    <h3 className="text-md font-semibold text-text-primary mb-2">Task Manager</h3>
-                    <p className="text-text-secondary text-sm">Task management controls are available in the full Task Manager view.</p>
-                    <button
-                      onClick={() => {
-                        setActiveTab('tasks-full');
-                        handleBackToDashboard(); // Close the chat view
-                      }}
-                      className="mt-2 text-accent hover:text-accent-hover text-sm font-medium"
-                    >
-                      Open Full Task Manager
-                    </button>
+                    <h3 className="text-md font-semibold text-text-primary mb-2">News & Search</h3>
+                    <p className="text-text-secondary text-sm">Search for news topics or enable monitoring.</p>
                   </div>
                 );
               }
-              if (activeFeatureWindow.id === 'notes') {
-                return (
-                  <div className="bg-bg-secondary border-b border-border p-3">
-                    <h3 className="text-md font-semibold text-text-primary mb-2">Block Notes</h3>
-                    <p className="text-text-secondary text-sm">Note editing is available in the full Notes view.</p>
-                    <button
-                      onClick={() => {
-                        setActiveTab('notes-full');
-                        handleBackToDashboard(); // Close the chat view
-                      }}
-                      className="mt-2 text-accent hover:text-accent-hover text-sm font-medium"
-                    >
-                      Open Full Notes
-                    </button>
-                  </div>
-                );
-              }
+              */
               return null;
             }}
           />
         )}
 
-        {/* Full Page Views for specific features */}
-        {activeTab === 'notes-full' && (
-          <NotesSection />
-        )}
-
-        {activeTab === 'tasks-full' && (
-          <TaskManager />
-        )}
-
         {/* Placeholder for other unimplemented views */}
         {activeTab !== 'dashboard' &&
           activeTab !== 'chat' &&
-          activeTab !== 'feature-chat' &&
-          activeTab !== 'notes-full' &&
-          activeTab !== 'tasks-full' && (
+          activeTab !== 'notes-window' &&
+          activeTab !== 'tasks-window' &&
+          activeTab !== 'news-window' &&
+          activeTab !== 'feature-chat' && (
             <div className="flex-1 flex flex-col items-center justify-center p-6 bg-bg-primary">
               <h2 className="text-2xl font-bold text-text-primary mb-2">
                 {allWindowCards.find(c => c.id === activeTab)?.title || 'Feature'}
@@ -460,19 +463,16 @@ const App = () => {
 
 // --- WindowCard Component ---
 // This component renders an individual window card on the dashboard.
-const WindowCard = ({ card, layout, onCreateChat, openFeatureWindowChat, isPinned, onPin, onUnpin }) => {
+const WindowCard = ({ card, layout, onCreateChat, openFeatureWindow, isPinned, onPin, onUnpin }) => {
 
   // Handler for when a window card is clicked
   const handleCardClick = () => {
     if (card.id === 'chat') {
       // For the main chat hub, create a new conversation
       onCreateChat();
-    } else if (['notes', 'tasks', 'news', 'crypto', 'fitness', 'prompts'].includes(card.id) || card.isCustom) {
-      // For other feature windows, open them in the universal chat interface
-      openFeatureWindowChat(card.id, card.title);
     } else {
-      // Fallback for any other unhandled window types
-      alert(`${card.title} view is not yet implemented.`);
+      // For other feature windows, open them in their dedicated view or feature chat
+      openFeatureWindow(card.id, card.title);
     }
   };
 
