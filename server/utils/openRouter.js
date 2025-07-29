@@ -25,7 +25,7 @@ const callOpenRouter = async (messages, searchResults = []) => {
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'mistralai/mistral-7b-instruct', // Or your preferred model
+        model: 'deepseek/deepseek-r1-0528-qwen3-8b:free',
         messages: context,
         temperature: 0.7
       },
